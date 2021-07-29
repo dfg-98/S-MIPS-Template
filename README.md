@@ -6,9 +6,9 @@
 
 # Introducción:
 
-Durante el desarrollo del Proyecto final de Arquitectura de Computadoras, el cual consiste en diseñar en Logisim un procesador que implemente la arquitectura de juegos de instrucciones S-MIPS (Simplified-MIPS), tropezamos con el problema de testear el circuito. La opción disponible hasta el momento era cargar manualmente las instrucciones a ejecutar, separadas en 4 bancos. Este proceso puede resultar tedioso pues implica por cada fragamento de código que queramos probar compilar dicho código, abrir el Logisim, establecer los parámetros para ponerlo en modo imulación, por cada una de las 4 rams cargar los datos correspondientes. Lo cuál supone un cúmulo de tareas repetitivas que pudieran optimizarse de alguna forma.
+Durante el desarrollo del Proyecto final de Arquitectura de Computadoras, el cual consiste en diseñar en Logisim un procesador que implemente la arquitectura de juegos de instrucciones S-MIPS (Simplified-MIPS), tropezamos con el problema de testear el circuito. La opción disponible hasta el momento era cargar manualmente las instrucciones a ejecutar, separadas en 4 bancos. Este proceso puede resultar tedioso pues implica por cada fragamento de código que queramos probar compilar dicho código, abrir el Logisim, establecer los parámetros para ponerlo en modo simulación, por cada una de las 4 rams cargar los datos correspondientes. Lo cuál supone un cúmulo de tareas repetitivas que pudieran automatizarse de alguna forma.
 
-En está práctica se brinda una posible implementación para la automatización de dicho proceso. Se naliza las ventajas y limitantes que tienen dicha implementación además se brinda un template modificado que los estudiantes deberán usar a la hora de implementar sus procesadores así como un script que permitirá la ejcución de multiples test con solo correr un comando en consola.
+En está práctica se brinda una posible implementación para la automatización de dicho proceso. Se analiza las ventajas y limitantes que tienen dicha implementación además se brinda un template modificado que los estudiantes deberán usar a la hora de implementar sus procesadores así como un script que permitirá la ejcución de multiples test con solo correr un comando en consola.
 
 # Bases:
 
@@ -16,14 +16,14 @@ Logisim nos brinda un modo de ejecución por consola en la cual podemos verficar
 
  Por ejemplo, *table* pasará a cada input todos los posibles valores que pueda tomar e imprime una tabla relacionando la entrada en cada input con los respectivos outputs obtenidos. Este método resulta cómodo para testear circuitos combinatorios. El argumento *speed* muestrá información relacionada al tiempo que duró la simulación así como la frecuencia media de los relojes. *halt* detiene la ejecución si existe algún output con la etiqueta **"halt"** y este output toma el valor 1 y *tty* imprime el output de cada componente tty dentro del circuito a la salida estándar. Puede consultar el comportamiento de otros parámetros en la [documentación oficial](http://cburch.com/logisim/docs/2.7/en/html/guide/verify/other.html).
 
- Otro paramétro importante para nuestro caso es el parámetro **-load**, el cual toma como argumento la dirección a un fichero que contiene la imagen o banco de datos a cargar en RAM. El comportamiento de Logisim será el siguiente: buscar recursivamente cada RAM dentro del circuito principal y cargar los datos del fichero imagen en está RAM. 
+ Otro paramétro importante para nuestro caso es el parámetro **-load**, el cual toma como argumento la dirección a un fichero que contiene la imagen o banco de datos a cargar en RAM. El comportamiento de Logisim será el siguiente: buscar recursivamente cada RAM dentro del circuito principal y cargar los datos del fichero imagen en cada RAM. 
 
 
 # Problemas del estado actual:
 
 Como se encuentra implementado la RAM del proyecto resulta imposible el uso de los parámetro mencionados en la sección anterior para testear el circuito desde la terminal dado que existen 4 bancos como componentes RAMs. En lo adelante cuando se emplee el término RAM se referirá al circuito dado en la plantilla del proyecto representando la RAM, mientras que componente RAM o banco RAM se usará para el componente que implementa built-in Logisim representando una RAM.
 
-Usar el parámetro **load** implicaría que el código a ejecutar a de estar en un único fichero de forma sequencial a difernecia de los 4 necesario para cada banco. Además de cargar todo el código con este comando implicaría que se tendrá el mismo código en cada banco lo que supone que cada instrucción será ejecutada 4 veces seguidas.
+Usar el parámetro **load** implicaría que el código a ejecutar ha de estar en un único fichero de forma secuencial a diferencia de los 4 necesarios para cada banco. Además de cargar todo el código con este comando implicaría que se tendrá el mismo código en cada banco lo que supone que cada instrucción será ejecutada 4 veces seguidas.
 
 # Ideas para corregir el estado actual:
 
@@ -36,7 +36,7 @@ En principio está unidad podría tener una bandera de control que indique si de
 A continuación se muestra cómo se implementó dicho componente.
 ![RAM Dispatcher](ram-dispatcher.png)
 
-Toma como entradas el tiempo de escritura en RAM, la entrada de reloj y una entrada clear para limpiar el estado de los registros y memoria usado. Como salidas tendrá la instrucción de 32 bits a escribir, una dirección de 16 bitas así como una máscara de 4 bits que indican la línea y el banco a escribir de la RAM respectivamente, una bandera (WRITE) que habilita la escritura en RAM y una bandera FINISHED que indica que se termino el proceso.
+Toma como entradas el tiempo de escritura en RAM, la entrada de reloj y una entrada clear para limpiar el estado de los registros y memoria usados. Como salidas tendrá la instrucción de 32 bits a escribir, una dirección de 16 bits así como una máscara de 4 bits que indican la línea y el banco a escribir de la RAM respectivamente, una bandera (WRITE) que habilita la escritura en RAM y una bandera FINISHED que indica que se termino el proceso.
 
 En el banco va a estar almacenado en un principio las instrucciones del programa que se desea ejecutar. El comportamiento es el siguiente:
 
@@ -47,7 +47,7 @@ En el banco va a estar almacenado en un principio las instrucciones del programa
 3- Se incrementa el valor del puntero de dirección (Registro CurrentAddress) hasta que la condición de parada se cumpla.
 
 
-La condición de parada puede ser variable, en primera instancia podría consistir en mapear toda la memoria pero eso sería eficiente dado que raramento un código tenga $2^{18}$ instrucciones, una alternativa puede ser agregar un valor de datos que no corresponda a ninguna instrucción e indique el fin de la carga (y este dato no se copiaría a la RAM por supuesto). Se tomó este segundo acercamiento para esta implementación (tomando el valor 0xFFFFFFFF) con las respectivas modificiaciones al ensambaldor para que genere además de los 4 bancos habituales un banco con las instrucciones unificadas y con el metadato de parada al final.
+La condición de parada puede ser variable, en primera instancia podría consistir en mapear toda la memoria pero eso sería ineficiente dado que raramento un código tenga $2^{18}$ instrucciones, una alternativa puede ser agregar un valor de datos que no corresponda a ninguna instrucción e indique el fin de la carga (y este dato no se copiaría a la RAM por supuesto). Se tomó este segundo acercamiento para esta implementación (tomando el valor 0xFFFFFFFF) con las respectivas modificiaciones al ensambaldor para que genere además de los 4 bancos habituales un banco con las instrucciones unificadas y con el metadato de parada al final.
 
 # Modificaciones de la plantilla actual requeridas:
 
