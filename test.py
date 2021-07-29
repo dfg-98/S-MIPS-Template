@@ -39,7 +39,7 @@ class TestCase:
                 print(result.stderr)
                 self.error = True
                 return
-            self.result = bytes.decode(result.stdout[:-24])
+            self.result = bytes.decode(result.stdout[:-24]).strip()
         except subprocess.CalledProcessError as e:
             print('Error al ejecutar test: ', self.test_name)
             print(result.stdout)
@@ -112,7 +112,7 @@ class TestSuite:
 
         for line in content:
             if line.startswith('#prints'):
-                expected = line[8:]
+                expected = line[8:].strip()
                 break
         print_verbose(verbose_level_all, 'Resultado esperado del test: ')
         print_verbose(verbose_level_all, expected)
