@@ -19,9 +19,10 @@ def print_verbose(verbose_level_required, *args):
 
 
 class TestCase:
-    def __init__(self, test_name, file, expected_result):
+    def __init__(self, test_name, file, expected_result, expected_speed=None):
         self.file = file
         self.expected_result = expected_result
+        self.expected_speed = expected_speed
         self.test_name = test_name
         self.runned = False
         self.error = False
@@ -32,7 +33,7 @@ class TestCase:
             logisim,
             template,
             "-tty",
-            "halt,tty",
+            "halt,tty,speed",
             "-load",
             self.file,
             "-sub",
@@ -51,7 +52,13 @@ class TestCase:
                 print(result.stderr)
                 self.error = True
                 return
-            self.result = bytes.decode(result.stdout[:-24]).strip()
+            output = bytes.decode(result.stdout)
+            r = output.find("halted due to halt pin")
+            self.result = output[:r].strip()
+            s = output.find("Hz (")
+            e = output.find(" ticks", s)
+            self.speed = output[s + 4 : e]
+
         except subprocess.CalledProcessError as e:
             print("Error al ejecutar test: ", self.test_name)
             print(result.stdout)
@@ -66,17 +73,31 @@ class TestCase:
         elif self.runned:
             status = self.result == self.expected_result
             print(
-                "Test:",
+                "Resultado:",
                 self.test_name,
                 " ===============================================> ",
                 "OK" if status else "FAIL",
             )
             print_verbose(
                 verbose_level_test_detail,
-                "Esperado: ",
+                "Resultado Esperado: ",
                 self.expected_result,
-                "Obtenido: ",
+                "Resultado Obtenido: ",
                 self.result,
+            )
+            status = self.speed <= self.expected_speed
+            print(
+                "Tiempo:",
+                self.test_name,
+                " ===============================================> ",
+                "OK" if status else "FAIL",
+            )
+            print_verbose(
+                verbose_level_test_detail,
+                "Tiempo Esperado: ",
+                self.expected_speed,
+                "Tiempo Obtenido: ",
+                self.speed,
             )
 
         else:
@@ -97,8 +118,14 @@ class TestSuite:
         for file, path in self.searchAsmFiles():
             self.compile(file, path)
             expected = self.extractExpectedResult(path)
+            excepted_time = self.extractExpectedSpeed(path)
             self.test.append(
-                TestCase(file, os.path.join(self.base_dir, file, "Bank"), expected)
+                TestCase(
+                    file,
+                    os.path.join(self.base_dir, file, "Bank"),
+                    expected,
+                    excepted_time,
+                )
             )
 
     def searchAsmFiles(self):
@@ -138,6 +165,22 @@ class TestSuite:
                 expected = line[8:].strip()
                 break
         print_verbose(verbose_level_all, "Resultado esperado del test: ")
+        print_verbose(verbose_level_all, expected)
+        return expected
+
+    def extractExpectedSpeed(self, path):
+
+        with open(path, "r") as file:
+            content = file.readlines()
+
+        read = False
+        expected = ""
+
+        for line in content:
+            if line.startswith("#limit"):
+                expected = line[7:].strip()
+                break
+        print_verbose(verbose_level_all, "Tiempo esperado del test: ")
         print_verbose(verbose_level_all, expected)
         return expected
 
